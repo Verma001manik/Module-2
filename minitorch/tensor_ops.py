@@ -241,7 +241,7 @@ def tensor_map(fn: Callable[[float], float]) -> Any:
       value of `in_storage` assuming `out_shape` and `in_shape`
       are the same size.
 
-    Broadcasted version:
+    Broadcasted version:    
 
     * Fill in the `out` array by applying `fn` to each
       value of `in_storage` assuming `out_shape` and `in_shape`
@@ -268,8 +268,42 @@ def tensor_map(fn: Callable[[float], float]) -> Any:
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+
+        # for i in range(in_shape[0]):
+
+        #     for j in range(in_shape[1]):
+        #         in_idx = i* in_strides[0] + j* in_strides[1]
+        #         out_idx = i*out_strides[0] + j* out_strides[1]
+        #         out[out_idx] = fn(in_storage[in_idx])
+            
+        broadcast_shape = shape_broadcast(in_shape, out_shape)
+        n = 1
+        ndim  = len(broadcast_shape)
+        for d in broadcast_shape:
+            n = n*d 
+
+        def unravel(idx, shape):
+            md = []
+            for s in reversed(shape):
+                md.append(idx%s)
+                idx //= s 
+            
+            return list(reversed(md))
+        
+        for idx in range(n):
+            # gives r,c where the element is located in the matrix based on the idx given.
+            out_md_idx = unravel(idx, broadcast_shape)
+            # print(f"out_md_idx {out_md_idx} for idx: {idx}")
+            in_md_idx = [0]* len(in_shape)
+
+            broadcast_index(out_md_idx, broadcast_shape, in_shape, in_md_idx)
+            # print(f"in_md_idx {in_md_idx} for idx :{idx}")
+
+            in_idx_flat = sum(i*j for i,j in zip(in_md_idx, in_strides))
+            # print(f"in_idx_flat : {in_idx_flat}")
+
+            out[idx] = fn(in_storage[in_idx_flat])
+
 
     return _map
 
@@ -318,8 +352,33 @@ def tensor_zip(fn: Callable[[float, float], float]) -> Any:
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        ab_broadcast_shape = shape_broadcast(a_shape, b_shape)
+        broadcast_shape = shape_broadcast(ab_broadcast_shape, out_shape)
+        
+
+        n = 1
+        ndim  = len(broadcast_shape)
+        for d in broadcast_shape:
+            n = n*d 
+
+        def unravel(idx, shape):
+            md = []
+            for s in reversed(shape):
+                md.append(idx%s)
+                idx //= s 
+            
+            return list(reversed(md))
+        for idx in range(n):
+            out_md_idx = unravel(idx, broadcast_shape)
+            a_md_idx = [0] * len(a_shape)
+            b_md_idx = [0] * len(b_shape)
+            broadcast_index(out_md_idx,broadcast_shape,a_shape, a_md_idx)
+            broadcast_index(out_md_idx, broadcast_shape, b_shape, b_md_idx)
+
+            a_idx_flat = sum(i*j for i,j in zip(a_md_idx, a_strides))
+            b_idx_flat = sum(i*j for i,j in zip(b_md_idx, b_strides))
+
+            out[idx] = fn(a_storage[a_idx_flat], b_storage[b_idx_flat])
 
     return _zip
 
@@ -354,8 +413,38 @@ def tensor_reduce(fn: Callable[[float, float], float]) -> Any:
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        
+        n =1 
+        for d in out_shape:
+            n*= d 
+        
+        def unravel(idx, shape):
+            md = []
+            for s in reversed(shape):
+                md.append(idx % s)
+                idx //= s
+            return list(reversed(md))
+
+        for out_idx in range(n):
+            out_md_idx = unravel(out_idx, out_shape)
+            acc= None 
+
+            for r in range(a_shape[reduce_dim]):
+                in_md_idx = list(out_md_idx)
+                in_md_idx[reduce_dim]  = r 
+                
+                in_idx_flat = sum(i* s for i,s in zip(in_md_idx, a_strides))
+                val = a_storage[in_idx_flat]
+                if acc is None:
+                    acc = val 
+
+                else:
+                    acc = fn(acc,val)
+            out_idx_flat =  sum(i*s for i,s in zip(out_md_idx, out_strides)) 
+            out[out_idx_flat] = acc 
+
+
+
 
     return _reduce
 

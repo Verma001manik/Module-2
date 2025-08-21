@@ -4,7 +4,7 @@ Be sure you have minitorch installed in you Virtual Env.
 """
 
 import minitorch
-
+from minitorch.scalar import Scalar
 
 def RParam(*shape):
     r = 2 * (minitorch.rand(shape) - 0.5)
@@ -22,7 +22,17 @@ class Network(minitorch.Module):
 
     def forward(self, x):
         # TODO: Implement for Task 2.5.
-        raise NotImplementedError("Need to implement for Task 2.5")
+        x = self.layer1.forward(x)
+        x = x.relu()
+        
+        x= self.layer2.forward(x)
+        x = x.relu()
+
+        x =self.layer3.forward(x)
+        x = x.sigmoid()
+
+
+        return x 
 
 
 class Linear(minitorch.Module):
@@ -34,7 +44,16 @@ class Linear(minitorch.Module):
 
     def forward(self, x):
         # TODO: Implement for Task 2.5.
-        raise NotImplementedError("Need to implement for Task 2.5")
+        batch = x.shape[0]
+        out = minitorch.zeros((batch, self.out_size)) 
+        for i in range(batch):
+            for j in range(self.out_size):
+                s = Scalar(0.0)
+                for k in range(self.weights.value.shape[0]):
+                    s = s + x[i, k] * self.weights.value[k, j]
+                out[i, j] = s.data
+        out = out + self.bias.value
+        return out
 
 
 def default_log_fn(epoch, total_loss, correct, losses):
@@ -89,7 +108,7 @@ class TensorTrain:
 
 if __name__ == "__main__":
     PTS = 50
-    HIDDEN = 2
-    RATE = 0.5
-    data = minitorch.datasets["Simple"](PTS)
+    HIDDEN = 10
+    RATE = 0.7
+    data = minitorch.datasets["Xor"](PTS)
     TensorTrain(HIDDEN).train(data, RATE)
